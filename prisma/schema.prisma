@@ -1,0 +1,359 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  studentId    String?  @unique
+  firstName    String
+  lastName     String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("STUDENT") // ADMIN | TEACHER | STUDENT
+  status       String   @default("PENDING") // PENDING | ACTIVE | SUSPENDED
+  phone        String?
+  avatarUrl    String?
+  // เพิ่มเมื่อเปลี่ยนรหัสผ่าน/สิทธิ์/สถานะ เพื่อบังคับให้ token เก่าใช้ไม่ได้ทุกเครื่อง
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  taughtClassrooms  Classroom[]        @relation("TeacherClassrooms")
+  enrollments       Enrollment[]
+  attendances       Attendance[]       @relation("AttendanceStudent")
+  attendanceRecords Attendance[]       @relation("AttendanceRecorder")
+  attendanceLogs    AttendanceLog[]    @relation("AttendanceLogEditor")
+  submissions       Submission[]       @relation("SubmissionStudent")
+  gradedSubmissions Submission[]       @relation("SubmissionGrader")
+  scoreLogs         ScoreLog[]
+  gradeRecords      GradeRecord[]      @relation("GradeRecordEditor")
+  gradeLogs         GradeLog[]
+  announcements     Announcement[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  resetTokens       PasswordResetToken[]
+  createdAssignments Assignment[]      @relation("AssignmentCreator")
+  attendanceSessions AttendanceSession[] @relation("SessionCreator")
+  leaveRequests     LeaveRequest[]     @relation("LeaveStudent")
+  leaveReviews      LeaveRequest[]     @relation("LeaveReviewer")
+
+  @@index([role])
+  @@index([status])
+}
+
+model Classroom {
+  id             Int      @id @default(autoincrement())
+  code           String   @unique
+  name           String
+  subject        String
+  subjectCode    String
+  semester       String
+  academicYear   String
+  teacherId      Int
+  joinCode       String   @unique
+  gpsLat         Float?
+  gpsLng         Float?
+  gpsRadius      Int      @default(100)
+  checkinOpenAt  DateTime?
+  checkinCloseAt DateTime?
+  attendanceOpen Boolean  @default(false)
+  lateAfterMinutes Int    @default(15)
+  weightAssignment Int    @default(30)
+  weightCollection Int    @default(20)
+  weightMidterm    Int    @default(20)
+  weightFinal      Int    @default(30)
+  weightActivity   Int    @default(0)
+  weightBonus      Int    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  teacher       User          @relation("TeacherClassrooms", fields: [teacherId], references: [id])
+  enrollments   Enrollment[]
+  attendances   Attendance[]
+  attendanceLogs AttendanceLog[]
+  assignments   Assignment[]
+  gradeRecords  GradeRecord[]
+  gradeScales   GradeScale[]
+  announcements Announcement[]
+  attendanceSessions AttendanceSession[]
+  leaveRequests LeaveRequest[]
+
+  @@index([semester, academicYear])
+  @@index([teacherId])
+}
+
+model Enrollment {
+  id          Int      @id @default(autoincrement())
+  classroomId Int
+  userId      Int
+  joinedAt    DateTime @default(now())
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([classroomId, userId])
+}
+
+model Attendance {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  userId      Int
+  date        String    // YYYY-MM-DD
+  status      String    @default("ABSENT") // PRESENT | LATE | ABSENT | LEAVE
+  checkinAt   DateTime?
+  lat         Float?
+  lng         Float?
+  distanceM   Float?
+  note        String?
+  recordedBy  Int?
+  sessionId   Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  student   User      @relation("AttendanceStudent", fields: [userId], references: [id], onDelete: Cascade)
+  recorder  User?     @relation("AttendanceRecorder", fields: [recordedBy], references: [id])
+  session   AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  logs      AttendanceLog[]
+  leaveRequests LeaveRequest[]
+
+  @@unique([classroomId, userId, date])
+  @@index([classroomId, date])
+  @@index([sessionId])
+}
+
+/// รอบเช็กชื่อที่ครูเปิดเมื่อต้องการ (ไม่ใช่เปิดตลอดเทอม)
+model AttendanceSession {
+  id               Int      @id @default(autoincrement())
+  classroomId      Int
+  title            String?
+  date             String   // YYYY-MM-DD
+  status           String   @default("OPEN") // OPEN | CLOSED
+  gpsLat           Float
+  gpsLng           Float
+  gpsRadius        Int      @default(100)
+  lateAfterMinutes Int      @default(15)
+  openedAt         DateTime @default(now())
+  closesAt         DateTime?
+  closedAt         DateTime?
+  createdById      Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  creator   User       @relation("SessionCreator", fields: [createdById], references: [id])
+  attendances Attendance[]
+
+  @@index([classroomId, date])
+  @@index([status, closesAt])
+}
+
+/// คำร้องลาที่นักเรียนส่งให้ครูพิจารณา
+model LeaveRequest {
+  id          Int      @id @default(autoincrement())
+  classroomId Int
+  userId      Int
+  date        String   // YYYY-MM-DD
+  reason      String
+  leaveType   String   @default("OTHER") // SICK (ลาป่วย) | PERSONAL (ลากิจ) | OTHER (ข้อมูลเก่าที่ยังไม่ระบุประเภท)
+  isHourly    Boolean  @default(false) // ลารายชั่วโมงระหว่างวัน (ไม่ใช่ลาทั้งวัน)
+  startTime   String?  // HH:mm — ช่วงเวลาที่ลา (เฉพาะ isHourly)
+  endTime     String?  // HH:mm — ช่วงเวลาที่ลา (เฉพาะ isHourly)
+  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  attendanceId Int?
+  reviewedBy  Int?
+  reviewedAt  DateTime?
+  reviewNote  String?
+  attachments String   @default("[]") // JSON [{name,url,size,type}] — รูปภาพใบรับรอง/หลักฐานการลา
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  student   User       @relation("LeaveStudent", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer  User?      @relation("LeaveReviewer", fields: [reviewedBy], references: [id])
+  attendance Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+
+  @@index([classroomId, status])
+  @@index([userId, date])
+}
+
+model AttendanceLog {
+  id          Int      @id @default(autoincrement())
+  attendanceId Int
+  classroomId Int
+  userId      Int
+  oldStatus   String
+  newStatus   String
+  reason      String?
+  changedBy   Int
+  createdAt   DateTime @default(now())
+
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  classroom  Classroom  @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  editor     User       @relation("AttendanceLogEditor", fields: [changedBy], references: [id])
+}
+
+model Assignment {
+  id                Int       @id @default(autoincrement())
+  classroomId       Int
+  title             String
+  description       String
+  attachments       String    @default("[]") // JSON [{name,url,size,type}]
+  startAt           DateTime?
+  dueAt             DateTime
+  maxScore          Float     @default(100)
+  bonusScore        Float     @default(0)
+  allowLate         Boolean   @default(false)
+  latePenaltyPercent Int      @default(0)
+  extensionMinutes  Int       @default(0)
+  isOpen            Boolean   @default(true)
+  createdBy         Int
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  classroom  Classroom   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  creator    User        @relation("AssignmentCreator", fields: [createdBy], references: [id])
+  submissions Submission[]
+
+  @@index([classroomId, dueAt])
+}
+
+model Submission {
+  id          Int       @id @default(autoincrement())
+  assignmentId Int
+  userId      Int
+  files       String    @default("[]")
+  note        String?
+  submittedAt DateTime  @default(now())
+  isLate      Boolean   @default(false)
+  status      String    @default("SUBMITTED") // SUBMITTED | GRADED
+  score       Float?
+  feedback    String?
+  gradedAt    DateTime?
+  gradedBy    Int?
+  attempt     Int       @default(1)
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    User       @relation("SubmissionStudent", fields: [userId], references: [id], onDelete: Cascade)
+  grader     User?      @relation("SubmissionGrader", fields: [gradedBy], references: [id])
+  scoreLogs  ScoreLog[]
+
+  @@unique([assignmentId, userId, attempt])
+  @@index([assignmentId, userId])
+}
+
+model ScoreLog {
+  id        Int      @id @default(autoincrement())
+  submissionId Int
+  changedBy Int
+  oldScore  Float?
+  newScore  Float?
+  note      String?
+  createdAt DateTime @default(now())
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  editor     User       @relation(fields: [changedBy], references: [id])
+}
+
+model GradeRecord {
+  id          Int      @id @default(autoincrement())
+  classroomId Int
+  userId      Int
+  category    String   // COLLECTION | MIDTERM | FINAL | ACTIVITY | BONUS
+  score       Float
+  maxScore    Float?
+  updatedBy   Int?
+  updatedAt   DateTime @updatedAt
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  editor    User?     @relation("GradeRecordEditor", fields: [updatedBy], references: [id])
+  logs      GradeLog[]
+
+  @@unique([classroomId, userId, category])
+}
+
+model GradeLog {
+  id            Int      @id @default(autoincrement())
+  gradeRecordId Int
+  changedBy     Int
+  oldScore      Float?
+  newScore      Float
+  note          String?
+  createdAt     DateTime @default(now())
+
+  record GradeRecord @relation(fields: [gradeRecordId], references: [id], onDelete: Cascade)
+  editor User        @relation(fields: [changedBy], references: [id])
+}
+
+model GradeScale {
+  id         Int    @id @default(autoincrement())
+  classroomId Int
+  grade      String
+  minScore   Float
+  maxScore   Float
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  @@unique([classroomId, grade])
+}
+
+model Announcement {
+  id          Int      @id @default(autoincrement())
+  classroomId Int
+  authorId    Int
+  title       String
+  body        String
+  pinned      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      String
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  actorId   Int?
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Setting {
+  key   String @unique
+  value String
+}

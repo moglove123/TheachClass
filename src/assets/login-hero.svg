@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="800" y2="600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#06204f"/>
+      <stop offset="0.5" stop-color="#0b3b8c"/>
+      <stop offset="1" stop-color="#0e6db5"/>
+    </linearGradient>
+    <radialGradient id="glowCyan" cx="0" cy="0" r="1" gradientTransform="translate(665 110) rotate(135) scale(280)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22d3ee" stop-opacity="0.65"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowBlue" cx="0" cy="0" r="1" gradientTransform="translate(110 520) rotate(35) scale(300)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60a5fa" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#60a5fa" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="glass" x1="250" y1="150" x2="670" y2="430" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.06"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#67e8f9"/>
+      <stop offset="1" stop-color="#3b82f6" stop-opacity="0.35"/>
+    </linearGradient>
+    <linearGradient id="line" x1="300" y1="0" x2="620" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a5b4fc"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" stroke="#7dd3fc" stroke-opacity="0.14" stroke-width="1"/>
+    </pattern>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <rect width="800" height="600" fill="url(#grid)"/>
+  <rect width="800" height="600" fill="url(#glowCyan)"/>
+  <rect width="800" height="600" fill="url(#glowBlue)"/>
+  <circle cx="410" cy="300" r="170" fill="#2563eb" opacity="0.28" filter="url(#soft)"/>
+
+  <!-- การ์ดหลัก: แดชบอร์ด -->
+  <g>
+    <rect x="246" y="132" width="436" height="296" rx="24" fill="url(#glass)" stroke="#ffffff" stroke-opacity="0.34" stroke-width="1.5"/>
+    <rect x="246" y="132" width="436" height="52" rx="24" fill="#ffffff" fill-opacity="0.09"/>
+    <rect x="246" y="164" width="436" height="20" fill="#ffffff" fill-opacity="0.09"/>
+    <circle cx="274" cy="158" r="6" fill="#fb7185"/>
+    <circle cx="294" cy="158" r="6" fill="#fbbf24"/>
+    <circle cx="314" cy="158" r="6" fill="#34d399"/>
+    <rect x="350" y="152" width="120" height="10" rx="5" fill="#ffffff" fill-opacity="0.32"/>
+    <rect x="620" y="152" width="38" height="12" rx="6" fill="#22d3ee" fill-opacity="0.7"/>
+
+    <!-- กราฟแท่ง -->
+    <rect x="276" y="216" width="12" height="62" rx="6" fill="url(#bar)"/>
+    <rect x="300" y="192" width="12" height="86" rx="6" fill="url(#bar)"/>
+    <rect x="324" y="232" width="12" height="46" rx="6" fill="url(#bar)"/>
+    <rect x="348" y="174" width="12" height="104" rx="6" fill="url(#bar)"/>
+    <rect x="372" y="206" width="12" height="72" rx="6" fill="url(#bar)"/>
+    <rect x="396" y="150" width="12" height="128" rx="6" fill="#67e8f9"/>
+    <rect x="420" y="190" width="12" height="88" rx="6" fill="url(#bar)"/>
+
+    <!-- กราฟเส้น -->
+    <path d="M466 300L506 264L546 278L586 222L630 238" stroke="url(#line)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M466 300L506 264L546 278L586 222L630 238V340H466V300Z" fill="#22d3ee" fill-opacity="0.10"/>
+    <circle cx="506" cy="264" r="5" fill="#a5f3fc"/>
+    <circle cx="586" cy="222" r="5" fill="#a5f3fc"/>
+    <circle cx="630" cy="238" r="5" fill="#a5f3fc"/>
+
+    <!-- แถบด้านล่าง + avatar -->
+    <rect x="274" y="352" width="380" height="1" fill="#ffffff" fill-opacity="0.18"/>
+    <circle cx="294" cy="386" r="16" fill="#93c5fd"/>
+    <circle cx="322" cy="386" r="16" fill="#67e8f9"/>
+    <circle cx="350" cy="386" r="16" fill="#c4b5fd"/>
+    <circle cx="378" cy="386" r="16" fill="#f9a8d4"/>
+    <rect x="410" y="378" width="120" height="8" rx="4" fill="#ffffff" fill-opacity="0.28"/>
+    <rect x="410" y="394" width="78" height="6" rx="3" fill="#ffffff" fill-opacity="0.16"/>
+    <rect x="570" y="374" width="82" height="26" rx="13" fill="#2563eb" fill-opacity="0.85"/>
+  </g>
+
+  <!-- การ์ดลอย: GPS เช็กชื่อ -->
+  <g>
+    <rect x="74" y="252" width="210" height="128" rx="20" fill="#ffffff" fill-opacity="0.16" stroke="#ffffff" stroke-opacity="0.38" stroke-width="1.5"/>
+    <circle cx="122" cy="302" r="24" fill="#22d3ee" fill-opacity="0.22"/>
+    <path d="M122 286c-8 0-14 6-14 14 0 10 14 22 14 22s14-12 14-22c0-8-6-14-14-14Z" fill="#a5f3fc"/>
+    <circle cx="122" cy="300" r="5" fill="#0b3b8c"/>
+    <rect x="158" y="290" width="94" height="9" rx="4.5" fill="#ffffff" fill-opacity="0.42"/>
+    <rect x="158" y="308" width="66" height="7" rx="3.5" fill="#ffffff" fill-opacity="0.22"/>
+    <rect x="102" y="344" width="154" height="7" rx="3.5" fill="#67e8f9" fill-opacity="0.6"/>
+  </g>
+
+  <!-- การ์ดลอย: งานที่ส่งแล้ว -->
+  <g>
+    <rect x="500" y="440" width="224" height="112" rx="20" fill="#ffffff" fill-opacity="0.15" stroke="#ffffff" stroke-opacity="0.36" stroke-width="1.5"/>
+    <circle cx="534" cy="474" r="14" fill="#34d399" fill-opacity="0.85"/>
+    <path d="M528 474l4 4 8-9" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="560" y="468" width="126" height="8" rx="4" fill="#ffffff" fill-opacity="0.38"/>
+    <circle cx="534" cy="514" r="14" fill="#34d399" fill-opacity="0.85"/>
+    <path d="M528 514l4 4 8-9" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="560" y="508" width="98" height="8" rx="4" fill="#ffffff" fill-opacity="0.30"/>
+  </g>
+
+  <!-- จุดตกแต่ง -->
+  <circle cx="88" cy="110" r="6" fill="#67e8f9" fill-opacity="0.8"/>
+  <circle cx="718" cy="390" r="5" fill="#a5b4fc" fill-opacity="0.85"/>
+  <circle cx="196" cy="476" r="4" fill="#ffffff" fill-opacity="0.5"/>
+  <path d="M670 70h34M687 53v34" stroke="#a5f3fc" stroke-opacity="0.55" stroke-width="2" stroke-linecap="round"/>
+  <path d="M60 400h24M72 388v24" stroke="#a5f3fc" stroke-opacity="0.45" stroke-width="2" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Sarabun', system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  body { @apply bg-[#f2f7fc] text-slate-800 antialiased dark:bg-[#111a24] dark:text-slate-200; }
+  * { scrollbar-width: thin; }
+
+  /* หัวเรื่องใช้ serif ไทย เพื่อแยกชั้นข้อมูลให้อ่านง่ายแบบงานเอกสาร */
+  h1, h2 { @apply font-display font-bold tracking-[-0.01em]; }
+
+  /* ตัดลูกเล่น "เด้ง/ย่อ" ตอนคลิกออก ให้เหลือแค่การเปลี่ยนสีที่นิ่งและคาดเดาได้ */
+  button, [role='button'], a, summary {
+    @apply transition-colors duration-150;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-blue-500/40 ring-offset-2 ring-offset-[#f2f7fc] dark:ring-offset-[#111a24];
+  }
+}
+
+@layer components {
+  /* พื้นหลังรวมของแอป: ฟ้าอ่อนมีเส้นตารางบาง ๆ แบบสมุดทะเบียน (ไม่มีแสงเรือง/gradient) */
+  .app-decor {
+    background-color: #f2f7fc;
+    background-image:
+      linear-gradient(to right, rgba(94, 154, 211, 0.075) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(94, 154, 211, 0.075) 1px, transparent 1px),
+      linear-gradient(to right, rgba(36, 87, 132, 0.055) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(36, 87, 132, 0.055) 1px, transparent 1px);
+    background-size: 28px 28px, 28px 28px, 140px 140px, 140px 140px;
+  }
+  .dark .app-decor {
+    background-color: #111a24;
+    background-image:
+      linear-gradient(to right, rgba(143, 189, 229, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(143, 189, 229, 0.05) 1px, transparent 1px),
+      linear-gradient(to right, rgba(94, 154, 211, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(94, 154, 211, 0.04) 1px, transparent 1px);
+  }
+
+  /* ป้ายกำกับหัวข้อย่อยแบบพิมพ์ (ตัวเล็ก เว้นระยะกว้าง) */
+  .caps { @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400; }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { @apply rounded-full bg-slate-300 dark:bg-slate-700; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* เคารพการตั้งค่าลดการเคลื่อนไหวของระบบปฏิบัติการ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
