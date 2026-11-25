@@ -2,6 +2,7 @@ import { Router } from 'express'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import crypto from 'node:crypto'
+import { Resend } from 'resend'
 import { z } from 'zod'
 import { prisma } from '../db.js'
 import { ApiError, asyncHandler, ok, audit, notify } from '../utils.js'
@@ -130,55 +131,65 @@ authRouter.get('/me', requireAuth, asyncHandler(async (req, res) => {
   ok(res, req.user)
 }))
 
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000
+const GENERIC_FORGOT_MESSAGE = 'หากอีเมลนี้มีอยู่ในระบบ เราได้ส่งลิงก์ตั้งรหัสผ่านไปแล้ว กรุณาตรวจสอบ inbox และ spam'
+const RESET_LINK_BASE = (process.env.APP_BASE_URL || 'https://theach-class.vercel.app').replace(/\/+$/, '')
+const RESET_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'TheachClass <onboarding@resend.dev>'
+
 /**
- * ส่งลิงก์รีเซ็ตรหัสผ่านผ่าน HTTP email gateway ที่ตั้งค่าใน EMAIL_API_URL
- * (รองรับบริการใด ๆ ที่รับ JSON { to, subject, text, token, resetUrl } และ Bearer key)
+ * ส่งลิงก์รีเซ็ตรหัสผ่านผ่าน Resend
+ * - ต้อง await ให้ส่งเสร็จก่อนตอบ API (กัน Vercel function ถูกตัดก่อนส่งอีเมล)
+ * - Resend คืน { data, error } แทนการ throw ตอนโดนปฏิเสธ → ต้องเช็ค error เอง
  */
 async function sendResetEmail(to, token) {
-  const resetUrl = `${process.env.APP_BASE_URL || ''}/forgot-password?token=${encodeURIComponent(token)}`
-  const headers = { 'content-type': 'application/json' }
-  if (process.env.EMAIL_API_KEY) headers.authorization = `Bearer ${process.env.EMAIL_API_KEY}`
-  let response
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) throw new ApiError(503, 'ยังไม่ได้ตั้งค่า RESEND_API_KEY กรุณาตั้งค่าใน Vercel → Project → Settings → Environment Variables')
+  const resetUrl = `${RESET_LINK_BASE}/reset-password?token=${encodeURIComponent(token)}`
+  const resend = new Resend(apiKey)
   try {
-    response = await fetch(process.env.EMAIL_API_URL, {
-      method: 'POST', headers,
-      body: JSON.stringify({
-        to,
-        subject: 'ตั้งรหัสผ่านใหม่ — TheachClass',
-        text: `ใช้รหัสนี้เพื่อตั้งรหัสผ่านใหม่ (หมดอายุใน 1 ชั่วโมง): ${token}\nหรือเปิดลิงก์: ${resetUrl}`,
-        token, resetUrl,
-      }),
+    const { data, error } = await resend.emails.send({
+      from: RESET_FROM_EMAIL,
+      to: [to],
+      subject: 'ตั้งรหัสผ่านใหม่ — TheachClass',
+      text: `ใช้ลิงก์นี้เพื่อตั้งรหัสผ่านใหม่ (หมดอายุใน 30 นาที):\n${resetUrl}\n\nหากคุณไม่ได้ขอเปลี่ยนรหัสผ่าน กรุณาละเว้นอีเมลนี้`,
+      html: `<p>ใช้ลิงก์นี้เพื่อตั้งรหัสผ่านใหม่ (หมดอายุใน 30 นาที):</p><p><a href="${resetUrl}">ตั้งรหัสผ่านใหม่</a></p><p>หากคุณไม่ได้ขอเปลี่ยนรหัสผ่าน กรุณาละเว้นอีเมลนี้</p>`,
     })
-  } catch {
+    if (error) throw new Error(error.message || 'Resend ปฏิเสธการส่งอีเมล')
+    return data
+  } catch (err) {
+    console.error('sendResetEmail failed:', err.message)
     throw new ApiError(502, 'ไม่สามารถส่งอีเมลได้ กรุณาลองใหม่ภายหลัง')
   }
-  if (!response.ok) throw new ApiError(502, 'ไม่สามารถส่งอีเมลได้ กรุณาลองใหม่ภายหลัง')
 }
 
 authRouter.post('/forgot-password', forgotLimiter, asyncHandler(async (req, res) => {
   const { email } = parseBody(forgotSchema, req.body)
-  const respondGeneric = () => ok(res, null, 'หากอีเมลนี้มีอยู่ในระบบ เราได้ส่งลิงก์ตั้งรหัสผ่านใหม่ให้แล้ว')
+  // ตอบข้อความเดียวกันทุกกรณีเพื่อป้องกันการเดาอีเมล (user enumeration)
+  const respondGeneric = () => ok(res, null, GENERIC_FORGOT_MESSAGE)
 
-  if (isProduction() && !process.env.EMAIL_API_URL)
-    throw new ApiError(503, 'ยังไม่ได้ตั้งค่าบริการส่งอีเมล (EMAIL_API_URL) กรุณาติดต่อผู้ดูแลระบบ')
+  if (isProduction() && !process.env.RESEND_API_KEY)
+    throw new ApiError(503, 'ยังไม่ได้ตั้งค่า RESEND_API_KEY กรุณาติดต่อผู้ดูแลระบบ')
 
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
-  if (!user) {
-    // ใน production ไม่บอกว่าอีเมลมีอยู่หรือไม่ เพื่อป้องกัน user enumeration
-    if (isProduction()) return respondGeneric()
-    throw new ApiError(404, 'ไม่พบบัญชีที่ใช้อีเมลนี้')
-  }
+  if (!user) return respondGeneric()
+
   const token = crypto.randomBytes(24).toString('hex')
-  await prisma.passwordResetToken.create({
-    data: { userId: user.id, token, expiresAt: new Date(Date.now() + 60 * 60 * 1000) },
+  const record = await prisma.passwordResetToken.create({
+    data: { userId: user.id, token, expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
   })
   await notify(user.id, 'PASSWORD_RESET', 'ขอเปลี่ยนรหัสผ่าน', 'มีการขอเปลี่ยนรหัสผ่านสำหรับบัญชีของคุณ')
   if (isProduction()) {
-    await sendResetEmail(user.email, token)
+    try {
+      await sendResetEmail(user.email, token)
+    } catch (err) {
+      // ถ้าส่งไม่สำเร็จ ไม่เก็บ token ที่ใช้งานไม่ได้ไว้ใน DB
+      await prisma.passwordResetToken.delete({ where: { id: record.id } }).catch(() => {})
+      throw err
+    }
     return respondGeneric()
   }
-  // โหมดพัฒนา/สาธิต: ไม่มีบริการอีเมล จึงคืน token ให้ทดสอบได้ (ดู README)
-  ok(res, { token }, 'สร้างรหัสเปลี่ยนรหัสผ่านแล้ว (ใช้งานได้ 1 ชั่วโมง)')
+  // โหมดพัฒนา/สาธิต: ไม่ส่งอีเมล จึงคืน token ให้ทดสอบได้ (ดู README)
+  ok(res, { token }, 'สร้างรหัสเปลี่ยนรหัสผ่านแล้ว (ใช้งานได้ 30 นาที)')
 }))
 
 authRouter.post('/reset-password', resetLimiter, asyncHandler(async (req, res) => {
@@ -193,6 +204,8 @@ authRouter.post('/reset-password', resetLimiter, asyncHandler(async (req, res) =
       data: { passwordHash: await bcrypt.hash(newPassword, 10), tokenVersion: { increment: 1 } },
     }),
     prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+    // ยกเลิก token อื่นที่ยังไม่ใช้ของผู้ใช้คนเดียวกัน
+    prisma.passwordResetToken.deleteMany({ where: { userId: record.userId, id: { not: record.id } } }),
   ])
   await audit(record.userId, 'RESET_PASSWORD', 'User', record.userId)
   ok(res, null, 'เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบใหม่')

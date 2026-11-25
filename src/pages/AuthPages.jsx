@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { GraduationCap } from 'lucide-react'
 import { api } from '../api.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -131,56 +131,96 @@ export function RegisterPage() {
   )
 }
 
+const GENERIC_FORGOT_MESSAGE = 'หากอีเมลนี้มีอยู่ในระบบ เราได้ส่งลิงก์ตั้งรหัสผ่านไปแล้ว กรุณาตรวจสอบ inbox และ spam'
+
 export function ForgotPasswordPage() {
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const legacyToken = params.get('token')
+  // ลิงก์เก่าที่ส่งเป็น /forgot-password?token=... ให้ไปหน้าตั้งรหัสผ่านใหม่แทน
+  useEffect(() => {
+    if (legacyToken) navigate(`/reset-password?token=${encodeURIComponent(legacyToken)}`, { replace: true })
+  }, [legacyToken, navigate])
+
   const [email, setEmail] = useState('')
-  const [token, setToken] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [sent, setSent] = useState(false)
-  const [mailSent, setMailSent] = useState(false)
+  const [devToken, setDevToken] = useState('')
+  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+
   const request = async (e) => {
-    e.preventDefault(); setLoading(true)
+    e.preventDefault(); setLoading(true); setDevToken('')
     try {
       const res = await api.post('/auth/forgot-password', { email })
-      if (res.data?.token) {
-        setToken(res.data.token)
-        setSent(true)
-      } else {
-        // production: ส่งทางอีเมล ไม่คืน token ใน API response
-        setMailSent(true)
-      }
-      toast(res.message)
+      setMessage(res.message || GENERIC_FORGOT_MESSAGE)
+      if (res.data?.token) setDevToken(res.data.token) // เฉพาะโหมดพัฒนา/สาธิต
     } catch { /* handled */ } finally { setLoading(false) }
   }
-  const reset = async (e) => {
-    e.preventDefault(); setLoading(true)
-    try { await api.post('/auth/reset-password', { token, newPassword }); toast('เปลี่ยนรหัสผ่านสำเร็จ'); window.location.href = '/login' }
-    catch { /* handled */ } finally { setLoading(false) }
-  }
+
   return (
-    <AuthShell title="ลืมรหัสผ่าน" subtitle="ขอรหัสเพื่อตั้งรหัสผ่านใหม่ (หมดอายุใน 1 ชั่วโมง)"
+    <AuthShell title="ลืมรหัสผ่าน" subtitle="กรอกอีเมลที่ลงทะเบียน เราจะส่งลิงก์ตั้งรหัสผ่านใหม่ (หมดอายุใน 30 นาที)"
       footer={<Link to="/login" className="font-semibold text-blue-700 hover:underline dark:text-blue-300">กลับไปเข้าสู่ระบบ</Link>}>
-      {!sent && !mailSent ? (
-        <form onSubmit={request} className="space-y-4">
-          <Input label="อีเมลที่ลงทะเบียน" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Button loading={loading} className="w-full">ขอรหัสเปลี่ยนรหัสผ่าน</Button>
-        </form>
-      ) : (
-        <form onSubmit={reset} className="space-y-4">
-          {sent ? (
+      {message ? (
+        <div className="space-y-4">
+          <div role="status" className="rounded-md border-l-2 border-blue-600 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900 dark:border-blue-400 dark:bg-blue-500/10 dark:text-blue-200">{message}</div>
+          {devToken && (
             <div className="rounded-md border-l-2 border-amber-500 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900 dark:border-amber-400 dark:bg-amber-500/10 dark:text-amber-200">
-              รหัสของคุณ: <b className="select-all font-mono">{token}</b><br />ระบบแสดงรหัสที่นี่เนื่องจากยังไม่ได้เชื่อมต่อบริการอีเมล (โหมดพัฒนา/สาธิต)
-            </div>
-          ) : (
-            <div className="rounded-md border-l-2 border-blue-600 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900 dark:border-blue-400 dark:bg-blue-500/10 dark:text-blue-200">
-              หากอีเมลนี้มีอยู่ในระบบ เราได้ส่งรหัส/ลิงก์ตั้งรหัสผ่านไปแล้ว กรุณาตรวจสอบ inbox และ spam
+              โหมดพัฒนา: <Link to={`/reset-password?token=${encodeURIComponent(devToken)}`} className="font-semibold underline">ตั้งรหัสผ่านใหม่</Link>
             </div>
           )}
-          <Input label="รหัสเปลี่ยนรหัสผ่าน" required value={token} onChange={(e) => setToken(e.target.value)} />
-          <Input label="รหัสผ่านใหม่ (อย่างน้อย 8 ตัวอักษรใน production)" type="password" required minLength={6} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-          <Button loading={loading} className="w-full">ตั้งรหัสผ่านใหม่</Button>
+        </div>
+      ) : (
+        <form onSubmit={request} className="space-y-4">
+          <Input label="อีเมลที่ลงทะเบียน" type="email" required placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Button type="submit" loading={loading} className="w-full" size="lg">ส่งลิงก์ตั้งรหัสผ่าน</Button>
         </form>
       )}
+    </AuthShell>
+  )
+}
+
+export function ResetPasswordPage() {
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const token = params.get('token') || ''
+  const [form, setForm] = useState({ newPassword: '', confirmPassword: '' })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (!token) {
+      setError('ลิงก์ตั้งรหัสผ่านไม่ถูกต้องหรือหมดอายุ')
+      return
+    }
+    if (form.newPassword !== form.confirmPassword) {
+      setError('รหัสผ่านทั้งสองช่องไม่ตรงกัน')
+      return
+    }
+    setLoading(true)
+    try {
+      await api.post('/auth/reset-password', { token, newPassword: form.newPassword })
+      toast('เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบใหม่')
+      navigate('/login', { replace: true })
+    } catch (err) {
+      setError(err.response?.data?.message || 'ตั้งรหัสผ่านไม่สำเร็จ กรุณาขอลิงก์ใหม่')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <AuthShell title="ตั้งรหัสผ่านใหม่" subtitle="กรอกรหัสผ่านใหม่สำหรับบัญชีของคุณ"
+      footer={<Link to="/forgot-password" className="font-semibold text-blue-700 hover:underline dark:text-blue-300">ขอลิงก์ใหม่</Link>}>
+      <form onSubmit={submit} className="space-y-4">
+        {!token && (
+          <div role="alert" className="rounded-md border-l-2 border-rose-600 bg-rose-50 p-3 text-xs leading-relaxed text-rose-800 dark:border-rose-400 dark:bg-rose-500/10 dark:text-rose-200">
+            ลิงก์ไม่ถูกต้องหรือหมดอายุ กรุณาขอลิงก์ใหม่อีกครั้ง
+          </div>
+        )}
+        <Input label="รหัสผ่านใหม่ (อย่างน้อย 8 ตัวอักษร)" type="password" required minLength={8} value={form.newPassword} onChange={(e) => setForm({ ...form, newPassword: e.target.value })} />
+        <Input label="ยืนยันรหัสผ่านใหม่" type="password" required minLength={8} value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
+        {error && <div role="alert" className="rounded-md border-l-2 border-rose-600 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-800 dark:border-rose-400 dark:bg-rose-500/10 dark:text-rose-200">{error}</div>}
+        <Button type="submit" loading={loading} className="w-full" size="lg">ตั้งรหัสผ่านใหม่</Button>
+      </form>
     </AuthShell>
   )
 }

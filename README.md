@@ -161,8 +161,9 @@ Express จะทำ SPA fallback: ทุก GET ที่ไม่ใช่ `/a
 | `DATABASE_URL` | Connection string ของฐานข้อมูลที่โฮสต์จริง | **SQLite ไม่ใช้ได้บน Vercel** — `schema.prisma` ใช้ `provider = "postgresql"` (Prisma Postgres/Neon/Supabase) |
 | `DIRECT_URL` | Connection string สำหรับ migration | เฉพาะกรณีใช้ PgBouncer แล้วเปิด `directUrl` ใน schema |
 | `JWT_SECRET` | กุญแจเซ็น token | สุ่ม ≥ 24 ตัว production จะบล็อกค่าตัวอย่าง |
-| `APP_BASE_URL` | Domain จริงของเว็บ | ใช้ประกอบลิงก์ reset password |
-| `EMAIL_API_URL` / `EMAIL_API_KEY` | Email gateway | จำเป็นสำหรับ “ลืมรหัสผ่าน” ใน production |
+| `APP_BASE_URL` | Domain จริงของเว็บ | ใช้ประกอบลิงก์ reset password (ถ้าไม่ตั้งใช้ `https://theach-class.vercel.app`) |
+| `RESEND_API_KEY` | API key ของ Resend | จำเป็นสำหรับ “ลืมรหัสผ่าน” ใน production |
+| `RESEND_FROM_EMAIL` | Sender ที่ verify ใน Resend | ไม่บังคับ (ค่าเริ่มต้น `TheachClass <onboarding@resend.dev>`) |
 | `MAX_FILE_SIZE_MB` | ขนาดไฟล์อัปโหลดสูงสุด | ไม่บังคับ (ค่าเริ่มต้น 20) |
 
 ก่อน deploy ให้รัน `npx prisma db push` โดยตั้ง `DATABASE_URL` ชี้ไปฐานข้อมูลจริง (แนะนำ host แบบ direct `db.prisma.io` สำหรับคำสั่ง CLI) เพื่อสร้างตาราง แล้วจึงกด Deploy
@@ -299,8 +300,8 @@ API ที่เกี่ยวข้อง:
 - ลบผู้ใช้จะปฏิเสธถ้ายังเป็นครูที่ดูแลห้องเรียนอยู่ (ต้องโอนห้องก่อน)
 
 ### ลืมรหัสผ่าน
-- **โหมดพัฒนา/สาธิต (`NODE_ENV` ไม่ใช่ `production`)**: เนื่องจากยังไม่ได้ configuration บริการอีเมล `POST /api/auth/forgot-password` จะ **ส่ง reset token กลับมาใน response โดยตรง** (ใช้งานได้ 1 ชั่วโมง) แล้วนำ token ไปเรียก `POST /api/auth/reset-password` พร้อม `newPassword`
-- **Production**: ต้องตั้ง `EMAIL_API_URL` (และ `EMAIL_API_KEY` ถ้าบริการต้องการ) ระบบจะ POST JSON `{ to, subject, text, token, resetUrl }` ไปยัง gateway ดังกล่าว **ไม่คืน token ใน response** และตอบข้อความรวม ๆ ทุกกรณีเพื่อป้องกันการเดาอีเมลในระบบ ถ้าไม่ได้ตั้งค่าบริการอีเมลจะตอบ `503` แทน
+- **โหมดพัฒนา/สาธิต (`NODE_ENV` ไม่ใช่ `production`)**: `POST /api/auth/forgot-password` จะ **คืน reset token ใน response** (หมดอายุใน 30 นาที) แล้วกดลิงก์ในหน้าเว็บไป `/reset-password?token=...` ได้โดยไม่ต้องส่งอีเมล
+- **Production**: ต้องตั้ง `RESEND_API_KEY` (และ `RESEND_FROM_EMAIL` ที่ verify แล้วใน Resend) ระบบจะ `await resend.emails.send(...)` แล้วส่งลิงก์ `${APP_BASE_URL}/reset-password?token=...` (ค่าเริ่มต้น `https://theach-class.vercel.app`) **ไม่คืน token ใน response** และตอบข้อความรวม ๆ ทุกกรณีเพื่อป้องกันการเดาอีเมล ถ้าไม่ได้ตั้ง key จะตอบ `503` แทน
 - หลังเปลี่ยนรหัสผ่านสำเร็จ ระบบจะเพิ่ม `tokenVersion` ของผู้ใช้ → **บังคับออกจากทุกอุปกรณ์ทันที** ต้องล็อกอินใหม่
 - Rate limit: login 20 ครั้ง/15 นาที, register 20 ครั้ง/ชม., forgot/reset 10 ครั้ง/ชม. ต่อ IP (ปิดอัตโนมัติตอน `NODE_ENV=test`)
 
@@ -372,4 +373,4 @@ npm test
 - ฐานข้อมูล SQLite เหมาะกับการใช้งานในเครื่อง/ทีมขนาดเล็ก ถ้าต้องการ production ขนาดใหญ่แนะนำย้ายไป PostgreSQL โดยแก้ `datasource` ใน `schema.prisma`
 - Rate limit เก็บใน memory ต่อโปรเซส เหมาะกับ deployments แบบ single instance; ถ้า scale หลาย instance ให้ใช้ Redis/shared store
 - Production ควรเปิด HTTPS เสมอ (`secure` cookie จะถูกส่งเฉพาะบน HTTPS) และตั้ง `APP_BASE_URL` ให้ตรงกับโดเมนจริง
-- ยังไม่มีบริการอีเมล/SMS/Push ในตัว — production ต้องต่อ `EMAIL_API_URL` เอง (ดูหัวข้อลืมรหัสผ่าน)
+- การแจ้งเตือนในแอปยังไม่มีอีเมล/SMS/Push — อีเมลที่ส่งจริงมีเฉพาะลิงก์ลืมรหัสผ่านผ่าน Resend (ดูหัวข้อลืมรหัสผ่าน)

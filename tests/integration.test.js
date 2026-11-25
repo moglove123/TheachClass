@@ -185,6 +185,10 @@ test('TheachClass integration suite', async (t) => {
     // เปลี่ยนสถานะ -> tokenVersion เพิ่ม -> ต้องล็อกอินใหม่ (บังคับออกจากทุกอุปกรณ์)
     await login(state.student3C, 'student3@test.local', 'pass123')
 
+    // อีเมลที่ไม่มีในระบบต้องตอบเหมือนกันทุกกรณี (กันเดาอีเมล)
+    const unknown = expectOk(await client().post('/api/auth/forgot-password', { email: 'nobody@test.local' }))
+    assert.equal(unknown.data?.token, undefined)
+
     const forgot = expectOk(await client().post('/api/auth/forgot-password', { email: 'student1@test.local' }))
     assert.ok(forgot.data.token)
     expectFail(await client().post('/api/auth/reset-password', { token: forgot.data.token, newPassword: 'short' }), 400)

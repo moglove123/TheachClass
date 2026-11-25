@@ -3,7 +3,7 @@ import { Loader, Toaster } from './components/ui.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import Layout from './components/Layout.jsx'
 import { useAuth } from './context/AuthContext.jsx'
-import { ForgotPasswordPage, LoginPage, RegisterPage } from './pages/AuthPages.jsx'
+import { ForgotPasswordPage, LoginPage, RegisterPage, ResetPasswordPage } from './pages/AuthPages.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Classrooms from './pages/Classrooms.jsx'
 import Attendance from './pages/Attendance.jsx'
@@ -38,6 +38,7 @@ export default function App() {
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route element={<Protected><Layout /></Protected>}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<Profile />} />
