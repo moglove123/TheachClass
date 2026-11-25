@@ -91,6 +91,7 @@ app.use((req, res) => fail(res, 404, `ไม่พบเส้นทาง ${req
 
 app.use((err, _req, res, _next) => {
   if (err instanceof ApiError) return fail(res, err.status, err.message, err.extra)
+  if (err.code === 'JWT_SECRET_INVALID') return fail(res, 500, err.message)
   if (err.code === 'P2002') return fail(res, 409, 'ข้อมูลซ้ำในระบบ (อาจเป็นอีเมล รหัส หรือรหัสห้องเรียน)')
   if (err.code === 'P2025') return fail(res, 404, 'ไม่พบข้อมูลที่ต้องการแก้ไข')
   if (err.name === 'MulterError') return fail(res, 400, `ข้อผิดพลาดในการอัปโหลดไฟล์: ${err.message}`)

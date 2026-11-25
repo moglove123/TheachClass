@@ -12,6 +12,8 @@ test('JWT secret guard: ปฏิเสธ secret ตัวอย่างใน
   process.env.NODE_ENV = 'test'
   assert.equal(isWeakSecret('change-this-secret-in-production'), true)
   assert.equal(isWeakSecret('integration-test-secret-2026'), false)
+  // ค่าที่ผู้ใช้ตั้งเอง (>24 ตัว) ต้องใช้ได้แม้มีคำว่า change-this ปนอยู่ (รองรับ env บน Vercel)
+  assert.equal(isWeakSecret('change-this-secret-in-production-8f2b7c1a9d'), false)
   assert.equal(minPasswordLength(), 6)
 
   process.env.NODE_ENV = 'production'
@@ -19,6 +21,10 @@ test('JWT secret guard: ปฏิเสธ secret ตัวอย่างใน
   assert.throws(() => assertProductionConfig(), /JWT_SECRET/)
   assert.throws(() => jwtSecret(), /JWT_SECRET/)
   assert.equal(minPasswordLength(), 8)
+
+  process.env.JWT_SECRET = 'change-this-secret-in-production-8f2b7c1a9d'
+  assert.doesNotThrow(() => assertProductionConfig())
+  assert.equal(jwtSecret(), process.env.JWT_SECRET)
 
   process.env.JWT_SECRET = 'a-very-long-random-production-secret-2026'
   assert.doesNotThrow(() => assertProductionConfig())
