@@ -142,7 +142,7 @@ Express จะทำ SPA fallback: ทุก GET ที่ไม่ใช่ `/a
 
 | ตัวแปร | ความหมาย | ค่าเริ่มต้น |
 | --- | --- | --- |
-| `DATABASE_URL` | พาธฐานข้อมูล SQLite | `file:./dev.db` (อยู่ใน `prisma/`) |
+| `DATABASE_URL` | Connection string ของ PostgreSQL ที่โฮสต์จริง | `postgres://USER:PASSWORD@pooled.db.prisma.io:5432/postgres?sslmode=require&connect_timeout=15` |
 | `JWT_SECRET` | กุญแจเซ็น token **ต้องเปลี่ยนใน production** | — |
 | `PORT` | พอร์ต API | `4000` |
 | `UPLOAD_DIR` | โฟลเดอร์เก็บไฟล์ | `./uploads` |
@@ -158,14 +158,16 @@ Express จะทำ SPA fallback: ทุก GET ที่ไม่ใช่ `/a
 
 | ตัวแปร | ความหมาย | หมายเหตุ |
 | --- | --- | --- |
-| `DATABASE_URL` | Connection string ของฐานข้อมูลที่โฮสต์จริง | **SQLite ไม่ใช้ได้บน Vercel** ต้องเป็น PostgreSQL (เช่น Neon/Supabase) เพราะ build ใช้ `prisma/schema.postgresql.prisma` |
+| `DATABASE_URL` | Connection string ของฐานข้อมูลที่โฮสต์จริง | **SQLite ไม่ใช้ได้บน Vercel** — `schema.prisma` ใช้ `provider = "postgresql"` (Prisma Postgres/Neon/Supabase) |
 | `DIRECT_URL` | Connection string สำหรับ migration | เฉพาะกรณีใช้ PgBouncer แล้วเปิด `directUrl` ใน schema |
 | `JWT_SECRET` | กุญแจเซ็น token | สุ่ม ≥ 24 ตัว production จะบล็อกค่าตัวอย่าง |
 | `APP_BASE_URL` | Domain จริงของเว็บ | ใช้ประกอบลิงก์ reset password |
 | `EMAIL_API_URL` / `EMAIL_API_KEY` | Email gateway | จำเป็นสำหรับ “ลืมรหัสผ่าน” ใน production |
 | `MAX_FILE_SIZE_MB` | ขนาดไฟล์อัปโหลดสูงสุด | ไม่บังคับ (ค่าเริ่มต้น 20) |
 
-ก่อน deploy ให้รัน `npm run prisma:push:postgres` โดยตั้ง `DATABASE_URL` ชี้ไปฐานข้อมูลจริงเพื่อสร้างตาราง แล้วจึงกด Deploy
+ก่อน deploy ให้รัน `npx prisma db push` โดยตั้ง `DATABASE_URL` ชี้ไปฐานข้อมูลจริง (แนะนำ host แบบ direct `db.prisma.io` สำหรับคำสั่ง CLI) เพื่อสร้างตาราง แล้วจึงกด Deploy
+
+> `schema.prisma` ใช้ PostgreSQL เพียงตัวเดียว ส่วน `npm test` ใช้ `prisma/schema.test.prisma` (SQLite) แยกต่างหาก จึงไม่ต้องสลับ schema เอง
 
 > ไฟล์ที่อัปโหลดบน Vercel เก็บใน `/tmp` (เขียนได้แต่ไม่ถาวร) ถ้าต้องการเก็บไฟล์จริงระยะยาว ต้องเปลี่ยนจาก disk เป็น object storage เช่น Vercel Blob/S3
 

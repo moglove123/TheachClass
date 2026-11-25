@@ -17,9 +17,18 @@ process.env.DATABASE_URL = `file:${dbPath.replace(/\\/g, '/')}`
 process.env.JWT_SECRET = 'integration-test-secret'
 process.env.MAX_FILE_SIZE_MB = '20'
 
+// ใช้ schema SQLite แยกต่างหาก เพราะ schema.prisma หลักเป็น PostgreSQL สำหรับ production
+const prismaCli = path.join(root, 'node_modules', 'prisma', 'build', 'index.js')
+const testSchema = path.join(root, 'prisma', 'schema.test.prisma')
+
+const generate = spawnSync(process.execPath, [prismaCli, 'generate', '--schema', testSchema], {
+  cwd: root, env: process.env, encoding: 'utf8',
+})
+if (generate.status !== 0) throw new Error(`Prisma generate failed:\n${generate.stdout}\n${generate.stderr}`)
+
 const push = spawnSync(
   process.execPath,
-  [path.join(root, 'node_modules', 'prisma', 'build', 'index.js'), 'db', 'push', '--skip-generate', '--accept-data-loss'],
+  [prismaCli, 'db', 'push', '--schema', testSchema, '--skip-generate', '--accept-data-loss'],
   { cwd: root, env: process.env, encoding: 'utf8' },
 )
 if (push.status !== 0) throw new Error(`Prisma db push failed:\n${push.stdout}\n${push.stderr}`)

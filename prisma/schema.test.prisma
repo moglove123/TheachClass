@@ -3,10 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-  // ถ้า provider ต้องการ connection แยกสำหรับ migration (เช่น PgBouncer) ให้ตั้ง DIRECT_URL แล้วเปิดบรรทัดนี้
-  // directUrl = env("DIRECT_URL")
 }
 
 model User {
