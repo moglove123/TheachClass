@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import multer from 'multer'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { prisma } from '../db.js'
@@ -9,7 +10,9 @@ import { ApiError, asyncHandler, audit, ok } from '../utils.js'
 import { assertRealImage } from '../fileValidation.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-export const avatarDir = path.resolve(__dirname, '../../uploads/avatars')
+export const avatarDir = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'teachclass-uploads', 'avatars')
+  : path.resolve(__dirname, '../../uploads/avatars')
 fs.mkdirSync(avatarDir, { recursive: true })
 
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp'])

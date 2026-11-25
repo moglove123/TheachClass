@@ -99,8 +99,12 @@ app.use((err, _req, res, _next) => {
 })
 
 export { app }
+// @vercel/node ต้องการ default export (Express app เป็น request handler ได้เลย)
+export default app
 
-if (process.env.NODE_ENV !== 'test') {
+// บน Vercel ไม่ควรเรียก app.listen หรือ startReminders() — function ถูกเรียกตาม request
+const isServerless = Boolean(process.env.VERCEL)
+if (process.env.NODE_ENV !== 'test' && !isServerless) {
   const port = Number(process.env.PORT || 4000)
   app.listen(port, () => {
     console.log(`TheachClass API running at http://localhost:${port}`)

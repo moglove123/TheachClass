@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import multer from 'multer'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
@@ -10,7 +11,10 @@ import { ApiError, asyncHandler, ok, sanitizeFileName } from '../utils.js'
 import { assertUploadedFile, IMAGE_EXT } from '../fileValidation.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-export const uploadDir = path.resolve(__dirname, '../../uploads')
+// Vercel อ่านเขียนเฉพาะ /tmp ได้ — ใช้ disk ปกติตอนรัน locally
+export const uploadDir = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'teachclass-uploads')
+  : path.resolve(__dirname, '../../uploads')
 fs.mkdirSync(uploadDir, { recursive: true })
 
 const allowedExt = new Set(['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.txt', '.zip', '.ppt', '.pptx', '.csv'])
